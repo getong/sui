@@ -495,7 +495,7 @@ public(package) fun request_add_stake(
     stake: Coin<SUI>,
     validator_address: address,
     ctx: &mut TxContext,
-) : StakedSui {
+): StakedSui {
     self.validators.request_add_stake(
         validator_address,
         stake.into_balance(),
@@ -510,7 +510,7 @@ public(package) fun request_add_stake_mul_coin(
     stake_amount: option::Option<u64>,
     validator_address: address,
     ctx: &mut TxContext,
-) : StakedSui {
+): StakedSui {
     let balance = extract_coin_balance(stakes, stake_amount, ctx);
     self.validators.request_add_stake(validator_address, balance, ctx)
 }
@@ -520,7 +520,7 @@ public(package) fun request_withdraw_stake(
     self: &mut SuiSystemStateInnerV2,
     staked_sui: StakedSui,
     ctx: &TxContext,
-) : Balance<SUI> {
+): Balance<SUI> {
     self.validators.request_withdraw_stake(staked_sui, ctx)
 }
 
@@ -528,7 +528,7 @@ public(package) fun convert_to_fungible_staked_sui(
     self: &mut SuiSystemStateInnerV2,
     staked_sui: StakedSui,
     ctx: &mut TxContext,
-) : FungibleStakedSui {
+): FungibleStakedSui {
     self.validators.convert_to_fungible_staked_sui(staked_sui, ctx)
 }
 
@@ -536,7 +536,7 @@ public(package) fun redeem_fungible_staked_sui(
     self: &mut SuiSystemStateInnerV2,
     fungible_staked_sui: FungibleStakedSui,
     ctx: &TxContext,
-) : Balance<SUI> {
+): Balance<SUI> {
     self.validators.redeem_fungible_staked_sui(fungible_staked_sui, ctx)
 }
 
@@ -838,7 +838,7 @@ public(package) fun advance_epoch(
     reward_slashing_rate: u64, // how much rewards are slashed to punish a validator, in bps.
     epoch_start_timestamp_ms: u64, // Timestamp of the epoch start
     ctx: &mut TxContext,
-) : Balance<SUI> {
+): Balance<SUI> {
     let prev_epoch_start_timestamp = self.epoch_start_timestamp_ms;
     self.epoch_start_timestamp_ms = epoch_start_timestamp_ms;
 
