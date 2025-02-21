@@ -26,7 +26,7 @@ module sui_system::validator_set_tests {
         let validator4 = create_validator(@0x4, 4, 1, false, ctx);
 
         // Create a validator set with only the first validator in it.
-        let mut validator_set = validator_set::new(vector[validator1], ctx);//
+        let mut validator_set = validator_set::new(vector[validator1], ctx);
         assert!(validator_set.total_stake() == 100 * MIST_PER_SUI);
 
         // Add the other 3 validators one by one.
