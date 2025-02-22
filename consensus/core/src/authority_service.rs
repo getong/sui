@@ -761,7 +761,7 @@ mod tests {
             Ok(Default::default())
         }
 
-        fn notify_rounds_probed(&self) -> Result<(), CoreError> {
+        fn set_propagation_delay(&self, _propagation_delay: Round) -> Result<(), CoreError> {
             todo!()
         }
 
@@ -860,10 +860,7 @@ mod tests {
             dag_state.clone(),
             false,
         );
-        let round_tracker = Arc::new(RwLock::new(PeerRoundTracker::new(
-            context.clone(),
-            dag_state.clone(),
-        )));
+        let round_tracker = Arc::new(RwLock::new(PeerRoundTracker::new(context.clone())));
         let authority_service = Arc::new(AuthorityService::new(
             context.clone(),
             block_verifier,
@@ -928,10 +925,7 @@ mod tests {
             dag_state.clone(),
             true,
         );
-        let round_tracker = Arc::new(RwLock::new(PeerRoundTracker::new(
-            context.clone(),
-            dag_state.clone(),
-        )));
+        let round_tracker = Arc::new(RwLock::new(PeerRoundTracker::new(context.clone())));
         let authority_service = Arc::new(AuthorityService::new(
             context.clone(),
             block_verifier,
