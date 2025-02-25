@@ -3267,6 +3267,7 @@ impl ProtocolConfig {
                     if chain != Chain::Mainnet {
                         cfg.feature_flags.passkey_auth = true;
                     }
+                    cfg.feature_flags.consensus_median_based_timestamp = true;
                 }
                 76 => {}
                 // Use this template when making changes:
