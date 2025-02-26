@@ -398,7 +398,7 @@ pub fn replace(
     let tx_hash: Vec<u8> = pop_arg!(args, Vec<u8>);
     let sender: AccountAddress = pop_arg!(args, AccountAddress);
     let transaction_context: &mut TransactionContext = context.extensions_mut().get_mut();
-    transaction_context.replace(sender, tx_hash, epoch, epoch_timestamp_ms, ids_created);
+    transaction_context.replace(sender, tx_hash, epoch, epoch_timestamp_ms, ids_created)?;
 
     Ok(NativeResult::ok(context.gas_used(), smallvec![]))
 }

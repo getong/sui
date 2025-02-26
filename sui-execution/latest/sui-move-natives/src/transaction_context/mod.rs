@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use better_any::{Tid, TidAble};
-use move_core_types::account_address::AccountAddress;
+use move_binary_format::errors::{PartialVMError, PartialVMResult};
+use move_core_types::{account_address::AccountAddress, vm_status::StatusCode};
 use std::{cell::RefCell, rc::Rc};
 use sui_types::{
     base_types::{ObjectID, SuiAddress, TxContext},
@@ -80,9 +81,12 @@ impl TransactionContext {
         epoch: u64,
         epoch_timestamp_ms: u64,
         ids_created: u64,
-    ) {
+    ) -> PartialVMResult<()> {
         if !self.test_only {
-            unreachable!("`replace` called on a non testing scenario");
+            return Err(
+                PartialVMError::new(StatusCode::UNKNOWN_INVARIANT_VIOLATION_ERROR)
+                    .with_message("`replace` called on a non testing scenario".to_string()),
+            );
         }
         self.tx_context.borrow_mut().replace(
             sender,
@@ -91,5 +95,6 @@ impl TransactionContext {
             epoch_timestamp_ms,
             ids_created,
         );
+        Ok(())
     }
 }

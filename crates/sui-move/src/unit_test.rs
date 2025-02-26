@@ -128,14 +128,13 @@ fn new_testing_object_and_natives_cost_runtime(ext: &mut NativeContextExtensions
     ));
     ext.add(NativesCostTable::from_protocol_config(&protocol_config));
     let tx_context = TxContext::new_from_components(
-        Box::leak(Box::new(SuiAddress::ZERO)),
-        Box::leak(Box::new(TransactionDigest::default())),
+        &SuiAddress::ZERO,
+        &TransactionDigest::default(),
         &0,
         0,
         0,
         0,
         None,
-        protocol_config.move_native_context(),
     );
     ext.add(TransactionContext::new_for_testing(Rc::new(RefCell::new(
         tx_context,

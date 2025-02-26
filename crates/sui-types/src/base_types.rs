@@ -1023,8 +1023,6 @@ pub struct TxContext {
     gas_budget: u64,
     // address of the sponsor if any
     sponsor: Option<AccountAddress>,
-    // flag to indicate whether the Move implementaion is native or not
-    is_native: bool,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -1045,7 +1043,6 @@ impl TxContext {
         gas_price: u64,
         gas_budget: u64,
         sponsor: Option<SuiAddress>,
-        is_native: bool,
     ) -> Self {
         Self::new_from_components(
             sender,
@@ -1055,7 +1052,6 @@ impl TxContext {
             gas_price,
             gas_budget,
             sponsor,
-            is_native,
         )
     }
 
@@ -1067,7 +1063,6 @@ impl TxContext {
         gas_price: u64,
         gas_budget: u64,
         sponsor: Option<SuiAddress>,
-        is_native: bool,
     ) -> Self {
         Self {
             sender: AccountAddress::new(sender.0),
@@ -1078,7 +1073,6 @@ impl TxContext {
             gas_price,
             gas_budget,
             sponsor: sponsor.map(|s| s.into()),
-            is_native,
         }
     }
 
@@ -1112,7 +1106,7 @@ impl TxContext {
     }
 
     pub fn sender(&self) -> SuiAddress {
-        SuiAddress::from(ObjectID(self.sender))
+        self.sender.into()
     }
 
     pub fn epoch_timestamp_ms(&self) -> u64 {
@@ -1148,8 +1142,8 @@ impl TxContext {
         id
     }
 
-    pub fn to_bcs_legacy_context(&self) -> Vec<u8> {
-        let move_context: MoveLegacyTxContext = if self.is_native {
+    pub fn to_bcs_legacy_context(&self, is_native: bool) -> Vec<u8> {
+        let move_context: MoveLegacyTxContext = if is_native {
             let tx_context = &TxContext {
                 sender: AccountAddress::ZERO,
                 digest: self.digest.clone(),
@@ -1159,7 +1153,6 @@ impl TxContext {
                 gas_price: 0,
                 gas_budget: 0,
                 sponsor: None,
-                is_native: true,
             };
             tx_context.into()
         } else {
@@ -1176,8 +1169,12 @@ impl TxContext {
     /// when mutable context is passed over some boundary via
     /// serialize/deserialize and this is the reason why this method
     /// consumes the other context..
-    pub fn update_state(&mut self, other: MoveLegacyTxContext) -> Result<(), ExecutionError> {
-        if !self.is_native {
+    pub fn update_state(
+        &mut self,
+        other: MoveLegacyTxContext,
+        is_native: bool,
+    ) -> Result<(), ExecutionError> {
+        if !is_native {
             if self.sender != other.sender
                 || self.digest != other.digest
                 || other.ids_created < self.ids_created

@@ -148,7 +148,6 @@ mod checked {
             gas_price,
             gas_data.budget,
             sponsor,
-            protocol_config.move_native_context(),
         );
         let tx_ctx = Rc::new(RefCell::new(tx_ctx));
 

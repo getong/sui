@@ -107,7 +107,6 @@ mod checked {
             1,
             1_000_000,
             None,
-            protocol_config.move_native_context(),
         );
 
         let is_epoch_change = transaction_kind.is_end_of_epoch_tx();
