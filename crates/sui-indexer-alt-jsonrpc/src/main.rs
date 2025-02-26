@@ -27,6 +27,7 @@ async fn main() -> anyhow::Result<()> {
             rpc_args,
             system_package_task_args,
             metrics_args,
+            write_args,
             config,
         } => {
             let rpc_config = if let Some(path) = config {
@@ -49,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
             let h_rpc = start_rpc(
                 args.db_args,
                 rpc_args,
-                args.write_args,
+                write_args,
                 system_package_task_args,
                 rpc_config,
                 metrics.registry(),

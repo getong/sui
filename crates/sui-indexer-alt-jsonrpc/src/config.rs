@@ -7,7 +7,9 @@ use sui_default_config::DefaultConfig;
 use sui_types::base_types::{ObjectID, SuiAddress};
 use tracing::warn;
 
-use crate::api::{coin::CoinsConfig, objects::ObjectsConfig, transactions::TransactionsConfig};
+use crate::api::{
+    coin::CoinsConfig, objects::ObjectsConfig, transactions::TransactionsConfig, write::WriteConfig,
+};
 
 pub use sui_name_service::NameServiceConfig;
 
@@ -25,6 +27,9 @@ pub struct RpcConfig {
 
     /// Configuration for coin-related RPC methods.
     pub coins: CoinsLayer,
+
+    /// Configuration for transaction execution RPC methods, if it is enabled.
+    pub write: Option<WriteLayer>,
 
     /// Configuration for bigtable kv store, if it is used.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -78,6 +83,16 @@ pub struct CoinsLayer {
 
 #[DefaultConfig]
 #[derive(Clone, Default, Debug)]
+pub struct WriteLayer {
+    pub header_value: Option<String>,
+    pub max_request_size: Option<u32>,
+
+    #[serde(flatten)]
+    pub extra: toml::Table,
+}
+
+#[DefaultConfig]
+#[derive(Clone, Default, Debug)]
 pub struct BigtableConfig {
     /// The instance id of the Bigtable instance to connect to.
     pub instance_id: String,
@@ -92,6 +107,7 @@ impl RpcConfig {
             transactions: TransactionsConfig::default().into(),
             name_service: NameServiceConfig::default().into(),
             coins: CoinsConfig::default().into(),
+            write: Some(WriteConfig::default().into()),
             bigtable_config: None,
             extra: Default::default(),
         }
@@ -147,6 +163,16 @@ impl CoinsLayer {
     }
 }
 
+impl WriteLayer {
+    pub fn finish(self, base: WriteConfig) -> WriteConfig {
+        check_extra("write", self.extra);
+        WriteConfig {
+            header_value: self.header_value.unwrap_or(base.header_value),
+            max_request_size: self.max_request_size.unwrap_or(base.max_request_size),
+        }
+    }
+}
+
 impl From<ObjectsConfig> for ObjectsLayer {
     fn from(config: ObjectsConfig) -> Self {
         Self {
@@ -184,6 +210,16 @@ impl From<CoinsConfig> for CoinsLayer {
         Self {
             default_page_size: Some(config.default_page_size),
             max_page_size: Some(config.max_page_size),
+            extra: Default::default(),
+        }
+    }
+}
+
+impl From<WriteConfig> for WriteLayer {
+    fn from(config: WriteConfig) -> Self {
+        Self {
+            header_value: Some(config.header_value),
+            max_request_size: Some(config.max_request_size),
             extra: Default::default(),
         }
     }

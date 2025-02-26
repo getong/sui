@@ -6,24 +6,15 @@ use std::path::PathBuf;
 use sui_indexer_alt_metrics::MetricsArgs;
 use sui_pg_db::DbArgs;
 
-use crate::{data::system_package_task::SystemPackageTaskArgs, RpcArgs};
+use crate::{api::write::WriteArgs, data::system_package_task::SystemPackageTaskArgs, RpcArgs};
 
 #[derive(clap::Parser, Debug, Clone)]
 pub struct Args {
     #[command(flatten)]
     pub db_args: DbArgs,
 
-    #[command(flatten)]
-    pub write_args: Option<WriteArgs>,
-
     #[command(subcommand)]
     pub command: Command,
-}
-
-#[derive(clap::Args, Debug, Clone)]
-pub struct WriteArgs {
-    /// The URL of the fullnode RPC we connect to for executing transactions.
-    pub fullnode_rpc_url: url::Url,
 }
 
 #[derive(clap::Subcommand, Debug, Clone)]
@@ -38,6 +29,9 @@ pub enum Command {
 
         #[command(flatten)]
         metrics_args: MetricsArgs,
+
+        #[command(flatten)]
+        write_args: Option<WriteArgs>,
 
         /// Path to the RPC's configuration TOML file. If one is not provided, the default values for
         /// the configuration will be set.

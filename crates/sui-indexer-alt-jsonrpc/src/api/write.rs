@@ -1,18 +1,26 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use anyhow::Context;
 use fastcrypto::encoding::Base64;
-use jsonrpsee::{core::RpcResult, http_client::HttpClient, proc_macros::rpc};
+use jsonrpsee::{
+    core::RpcResult,
+    http_client::{HeaderMap, HeaderValue, HttpClient, HttpClientBuilder},
+    proc_macros::rpc,
+};
 use sui_json_rpc_types::{
     DryRunTransactionBlockResponse, SuiTransactionBlockResponse, SuiTransactionBlockResponseOptions,
 };
 use sui_open_rpc::Module;
 use sui_open_rpc_macros::open_rpc;
 use sui_types::quorum_driver_types::ExecuteTransactionRequestType;
+use url::Url;
 
 use crate::error::{client_error_to_error_object, invalid_params};
 
 use super::rpc_module::RpcModule;
+
+pub const CLIENT_SDK_TYPE_HEADER: &str = "client-sdk-type";
 
 #[open_rpc(namespace = "sui", tag = "Write API")]
 #[rpc(server, client, namespace = "sui")]
@@ -42,12 +50,37 @@ pub trait WriteApi {
     ) -> RpcResult<DryRunTransactionBlockResponse>;
 }
 
+#[derive(clap::Args, Debug, Clone)]
+pub struct WriteArgs {
+    /// The URL of the fullnode RPC we connect to for executing transactions.
+    pub fullnode_rpc_url: url::Url,
+}
+
+#[derive(Clone, Debug)]
+pub struct WriteConfig {
+    /// The value of the header to be sent to the fullnode RPC, used to distinguish between different instances.
+    pub header_value: String,
+    /// The maximum size of the request body allowed.
+    pub max_request_size: u32,
+}
+
 pub(crate) struct Write(pub HttpClient);
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("WaitForLocalExecution mode is deprecated")]
     DeprecatedWaitForLocalExecution,
+}
+
+impl Write {
+    pub fn new(args: WriteArgs, config: WriteConfig) -> anyhow::Result<Self> {
+        let http_client = get_http_client(
+            &args.fullnode_rpc_url,
+            &config.header_value,
+            config.max_request_size,
+        )?;
+        Ok(Self(http_client))
+    }
 }
 
 #[async_trait::async_trait]
@@ -87,4 +120,28 @@ impl RpcModule for Write {
     fn into_impl(self) -> jsonrpsee::RpcModule<Self> {
         self.into_rpc()
     }
+}
+
+impl Default for WriteConfig {
+    fn default() -> Self {
+        Self {
+            header_value: "sui-indexer-alt-jsonrpc".to_string(),
+            max_request_size: (10 * 2) << 20, // 10MB
+        }
+    }
+}
+
+fn get_http_client(
+    rpc_client_url: &Url,
+    header_value: &str,
+    max_request_size: u32,
+) -> anyhow::Result<HttpClient> {
+    let mut headers = HeaderMap::new();
+    headers.insert(CLIENT_SDK_TYPE_HEADER, HeaderValue::from_str(header_value)?);
+
+    HttpClientBuilder::default()
+        .max_request_size(max_request_size)
+        .set_headers(headers.clone())
+        .build(rpc_client_url)
+        .context("Failed to initialize fullnode RPC client")
 }
