@@ -477,7 +477,11 @@ mod test {
                 PerObjectCongestionControlMode::TotalGasBudget,
                 PerObjectCongestionControlMode::TotalTxCount,
                 PerObjectCongestionControlMode::TotalGasBudgetWithCap,
-                PerObjectCongestionControlMode::ExecutionTimeEstimate,
+                PerObjectCongestionControlMode::ExecutionTimeEstimate(
+                    ExecutionTimeEstimateParams {
+                        target_utilization: rng.gen_range(1..=100),
+                    },
+                ),
             ]
             .choose(&mut rng)
             .unwrap();
