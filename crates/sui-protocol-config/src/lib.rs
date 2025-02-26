@@ -658,6 +658,12 @@ impl ConsensusTransactionOrdering {
     }
 }
 
+#[derive(Default, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
+pub struct ExecutionTimeEstimateParams {
+    // targeted per-object utilization as an integer percentage (1-100)
+    target_utilization: u64,
+}
+
 // The config for per object congestion control in consensus handler.
 #[derive(Default, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub enum PerObjectCongestionControlMode {
@@ -666,7 +672,7 @@ pub enum PerObjectCongestionControlMode {
     TotalGasBudget,        // Use txn gas budget as execution cost.
     TotalTxCount,          // Use total txn count as execution cost.
     TotalGasBudgetWithCap, // Use txn gas budget as execution cost with a cap.
-    ExecutionTimeEstimate, // Use execution time estimate as execution cost.
+    ExecutionTimeEstimate(ExecutionTimeEstimateParams), // Use execution time estimate as execution cost.
 }
 
 impl PerObjectCongestionControlMode {
@@ -3290,6 +3296,13 @@ impl ProtocolConfig {
                     if chain != Chain::Mainnet && chain != Chain::Testnet {
                         cfg.feature_flags.record_additional_state_digest_in_prologue = true;
                         cfg.consensus_commit_rate_estimation_window_size = Some(10);
+
+                        cfg.feature_flags.per_object_congestion_control_mode =
+                            PerObjectCongestionControlMode::ExecutionTimeEstimate(
+                                ExecutionTimeEstimateParams {
+                                    target_utilization: 50,
+                                },
+                            );
                     }
                     cfg.feature_flags.minimize_child_object_mutations = true;
                 }

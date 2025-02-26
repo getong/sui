@@ -13,6 +13,15 @@ use sui_types::messages_consensus::Round;
 use sui_types::transaction::{Argument, SharedInputObject, TransactionDataAPI};
 use tracing::trace;
 
+struct Params {
+    mode: PerObjectCongestionControlMode,
+    max_accumulated_txn_cost_per_object_in_commit: u64,
+    gas_budget_based_txn_cost_cap_factor: Option<u64>,
+    gas_budget_based_txn_cost_absolute_cap: Option<u64>,
+    max_txn_cost_overage_per_object_in_commit: u64,
+    allowed_txn_cost_overage_burst_per_object_in_commit: u64,
+}
+
 // SharedObjectCongestionTracker stores the accumulated cost of executing transactions on an object, for
 // all transactions in a consensus commit.
 //
@@ -28,12 +37,7 @@ use tracing::trace;
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct SharedObjectCongestionTracker {
     object_execution_cost: HashMap<ObjectID, u64>,
-    mode: PerObjectCongestionControlMode,
-    max_accumulated_txn_cost_per_object_in_commit: u64,
-    gas_budget_based_txn_cost_cap_factor: Option<u64>,
-    gas_budget_based_txn_cost_absolute_cap: Option<u64>,
-    max_txn_cost_overage_per_object_in_commit: u64,
-    allowed_txn_cost_overage_burst_per_object_in_commit: u64,
+    params: Params,
 }
 
 impl SharedObjectCongestionTracker {
@@ -76,12 +80,14 @@ impl SharedObjectCongestionTracker {
         );
         Self {
             object_execution_cost,
-            mode,
-            max_accumulated_txn_cost_per_object_in_commit,
-            gas_budget_based_txn_cost_cap_factor,
-            gas_budget_based_txn_cost_absolute_cap,
-            max_txn_cost_overage_per_object_in_commit,
-            allowed_txn_cost_overage_burst_per_object_in_commit,
+            params: Params {
+                mode,
+                max_accumulated_txn_cost_per_object_in_commit,
+                gas_budget_based_txn_cost_cap_factor,
+                gas_budget_based_txn_cost_absolute_cap,
+                max_txn_cost_overage_per_object_in_commit,
+                allowed_txn_cost_overage_burst_per_object_in_commit,
+            },
         }
     }
 

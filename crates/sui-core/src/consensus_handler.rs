@@ -1165,7 +1165,6 @@ impl CommitRateObserver {
         self.ring_buffer.push_back(commit_time);
     }
 
-    #[allow(dead_code)]
     pub fn commit_rate_estimate(&self) -> Option<Duration> {
         if self.ring_buffer.len() <= 1 {
             None
