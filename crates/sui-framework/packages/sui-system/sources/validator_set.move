@@ -418,9 +418,7 @@ public(package) fun advance_epoch(
 
     // switch to using voting power based admission, if we are not already using it
     let key = VotingPowerAdmissionStartEpochKey();
-    if (!self.extra_fields.contains(key)) {
-        self.extra_fields.add(key, ctx.epoch());
-    };
+    if (!self.extra_fields.contains(key)) self.extra_fields.add(key, ctx.epoch());
 
     // Compute the reward distribution without taking into account the tallying rule slashing.
     let (unadjusted_staking_reward_amounts, unadjusted_storage_fund_reward_amounts) = compute_unadjusted_reward_distribution(
