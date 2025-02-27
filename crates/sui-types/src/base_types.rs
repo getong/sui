@@ -1199,12 +1199,18 @@ impl TxContext {
         epoch: u64,
         epoch_timestamp_ms: u64,
         ids_created: u64,
+        gas_price: u64,
+        gas_budget: u64,
+        sponsor: Option<AccountAddress>,
     ) {
         self.sender = sender;
         self.digest = tx_hash;
         self.epoch = epoch;
         self.epoch_timestamp_ms = epoch_timestamp_ms;
         self.ids_created = ids_created;
+        self.gas_price = gas_price;
+        self.gas_budget = gas_budget;
+        self.sponsor = sponsor;
     }
 }
 

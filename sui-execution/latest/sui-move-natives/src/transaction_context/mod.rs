@@ -81,6 +81,9 @@ impl TransactionContext {
         epoch: u64,
         epoch_timestamp_ms: u64,
         ids_created: u64,
+        gas_price: u64,
+        gas_budget: u64,
+        sponsor: Option<AccountAddress>,
     ) -> PartialVMResult<()> {
         if !self.test_only {
             return Err(
@@ -94,6 +97,9 @@ impl TransactionContext {
             epoch,
             epoch_timestamp_ms,
             ids_created,
+            gas_price,
+            gas_budget,
+            sponsor,
         );
         Ok(())
     }

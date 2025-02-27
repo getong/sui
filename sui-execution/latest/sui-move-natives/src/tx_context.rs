@@ -5,60 +5,15 @@ use move_binary_format::errors::PartialVMResult;
 use move_core_types::{account_address::AccountAddress, gas_algebra::InternalGas};
 use move_vm_runtime::{native_charge_gas_early_exit, native_functions::NativeContext};
 use move_vm_types::{
-    loaded_data::runtime_types::Type,
-    natives::function::NativeResult,
-    pop_arg,
-    values::{Struct, Value, Vector},
+    loaded_data::runtime_types::Type, natives::function::NativeResult, pop_arg, values::Value,
 };
 use smallvec::smallvec;
-use std::{collections::VecDeque, convert::TryFrom};
-use sui_types::base_types::{ObjectID, SuiAddress, TransactionDigest};
+use std::collections::VecDeque;
+use sui_types::{base_types::ObjectID, digests::TransactionDigest};
 
 use crate::{
     object_runtime::ObjectRuntime, transaction_context::TransactionContext, NativesCostTable,
 };
-
-#[derive(Clone)]
-pub struct TxContextDeriveIdCostParams {
-    pub tx_context_derive_id_cost_base: InternalGas,
-}
-/***************************************************************************************************
- * native fun derive_id
- * Implementation of the Move native function `fun derive_id(tx_hash: vector<u8>, ids_created: u64): address`
- *   gas cost: tx_context_derive_id_cost_base                | we operate on fixed size data structures
- **************************************************************************************************/
-pub fn derive_id(
-    context: &mut NativeContext,
-    ty_args: Vec<Type>,
-    mut args: VecDeque<Value>,
-) -> PartialVMResult<NativeResult> {
-    debug_assert!(ty_args.is_empty());
-    debug_assert!(args.len() == 2);
-
-    let tx_context_derive_id_cost_params = context
-        .extensions_mut()
-        .get::<NativesCostTable>()
-        .tx_context_derive_id_cost_params
-        .clone();
-    native_charge_gas_early_exit!(
-        context,
-        tx_context_derive_id_cost_params.tx_context_derive_id_cost_base
-    );
-
-    let ids_created = pop_arg!(args, u64);
-    let tx_hash = pop_arg!(args, Vec<u8>);
-
-    // unwrap safe because all digests in Move are serialized from the Rust `TransactionDigest`
-    let digest = TransactionDigest::try_from(tx_hash.as_slice()).unwrap();
-    let address = AccountAddress::from(ObjectID::derive_id(digest, ids_created));
-    let obj_runtime: &mut ObjectRuntime = context.extensions_mut().get_mut();
-    obj_runtime.new_id(address.into())?;
-
-    Ok(NativeResult::ok(
-        context.gas_used(),
-        smallvec![Value::address(address)],
-    ))
-}
 
 #[derive(Clone)]
 pub struct TxContextFreshIdCostParams {
@@ -229,23 +184,12 @@ pub fn sponsor(
     );
 
     let transaction_context: &mut TransactionContext = context.extensions_mut().get_mut();
-    let sponsor = to_option(transaction_context.sponsor())?;
-
+    let sponsor = transaction_context
+        .sponsor()
+        .map(|addr| addr.into())
+        .into_iter();
+    let sponsor = Value::vector_address(sponsor);
     Ok(NativeResult::ok(context.gas_used(), smallvec![sponsor]))
-}
-
-fn to_option(value: Option<SuiAddress>) -> PartialVMResult<Value> {
-    let vector = Type::Vector(Box::new(Type::Address));
-    match value {
-        Some(value) => {
-            let value = vec![AccountAddress::new(value.to_inner())];
-            Ok(Value::struct_(Struct::pack(vec![Vector::pack(
-                &vector,
-                vec![Value::vector_address(value)],
-            )?])))
-        }
-        None => Ok(Value::struct_(Struct::pack(vec![Vector::empty(&vector)?]))),
-    }
 }
 
 #[derive(Clone)]
@@ -380,7 +324,7 @@ pub fn replace(
     mut args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
     debug_assert!(ty_args.is_empty());
-    debug_assert!(args.len() == 5);
+    debug_assert!(args.len() == 8);
 
     let tx_context_replace_cost_params = context
         .extensions_mut()
@@ -392,13 +336,111 @@ pub fn replace(
         tx_context_replace_cost_params.tx_context_replace_cost_base
     );
 
+    let mut sponsor: Vec<AccountAddress> = pop_arg!(args, Vec<AccountAddress>);
+    let gas_budget: u64 = pop_arg!(args, u64);
+    let gas_price: u64 = pop_arg!(args, u64);
     let ids_created: u64 = pop_arg!(args, u64);
     let epoch_timestamp_ms: u64 = pop_arg!(args, u64);
     let epoch: u64 = pop_arg!(args, u64);
     let tx_hash: Vec<u8> = pop_arg!(args, Vec<u8>);
     let sender: AccountAddress = pop_arg!(args, AccountAddress);
     let transaction_context: &mut TransactionContext = context.extensions_mut().get_mut();
-    transaction_context.replace(sender, tx_hash, epoch, epoch_timestamp_ms, ids_created)?;
+    transaction_context.replace(
+        sender,
+        tx_hash,
+        epoch,
+        epoch_timestamp_ms,
+        ids_created,
+        gas_price,
+        gas_budget,
+        sponsor.pop(),
+    )?;
 
     Ok(NativeResult::ok(context.gas_used(), smallvec![]))
+}
+// Attempt to get the most recent created object ID when none has been created.
+// Lifted out of Move into this native function.
+const E_NO_IDS_CREATED: u64 = 1;
+
+#[derive(Clone)]
+pub struct TxContextDeriveIdCostParams {
+    pub tx_context_derive_id_cost_base: InternalGas,
+}
+
+/***************************************************************************************************
+ * native fun derive_id
+ * Implementation of the Move native function `fun derive_id(tx_hash: vector<u8>, ids_created: u64): address`
+ *   gas cost: tx_context_derive_id_cost_base                | we operate on fixed size data structures
+ **************************************************************************************************/
+pub fn derive_id(
+    context: &mut NativeContext,
+    ty_args: Vec<Type>,
+    mut args: VecDeque<Value>,
+) -> PartialVMResult<NativeResult> {
+    debug_assert!(ty_args.is_empty());
+    debug_assert!(args.len() == 2);
+
+    let tx_context_derive_id_cost_params = context
+        .extensions_mut()
+        .get::<NativesCostTable>()
+        .tx_context_derive_id_cost_params
+        .clone();
+    native_charge_gas_early_exit!(
+        context,
+        tx_context_derive_id_cost_params.tx_context_derive_id_cost_base
+    );
+
+    let ids_created = pop_arg!(args, u64);
+    let tx_hash = pop_arg!(args, Vec<u8>);
+
+    // unwrap safe because all digests in Move are serialized from the Rust `TransactionDigest`
+    let digest = TransactionDigest::try_from(tx_hash.as_slice()).unwrap();
+    let address = AccountAddress::from(ObjectID::derive_id(digest, ids_created));
+    let obj_runtime: &mut ObjectRuntime = context.extensions_mut().get_mut();
+    obj_runtime.new_id(address.into())?;
+
+    Ok(NativeResult::ok(
+        context.gas_used(),
+        smallvec![Value::address(address)],
+    ))
+}
+
+// use same protocol config and cost value as derive_id
+/***************************************************************************************************
+ * native fun last_created_id
+ * Implementation of the Move native function `fun last_created_id(): address`
+ **************************************************************************************************/
+pub fn last_created_id(
+    context: &mut NativeContext,
+    ty_args: Vec<Type>,
+    args: VecDeque<Value>,
+) -> PartialVMResult<NativeResult> {
+    debug_assert!(ty_args.is_empty());
+    debug_assert!(args.is_empty());
+
+    let tx_context_derive_id_cost_params = context
+        .extensions_mut()
+        .get::<NativesCostTable>()
+        .tx_context_derive_id_cost_params
+        .clone();
+    native_charge_gas_early_exit!(
+        context,
+        tx_context_derive_id_cost_params.tx_context_derive_id_cost_base
+    );
+
+    let transaction_context: &mut TransactionContext = context.extensions_mut().get_mut();
+    let mut ids_created = transaction_context.ids_created();
+    if ids_created == 0 {
+        return Ok(NativeResult::err(context.gas_used(), E_NO_IDS_CREATED));
+    }
+    ids_created -= 1;
+    let digest = transaction_context.digest();
+    let address = AccountAddress::from(ObjectID::derive_id(digest, ids_created));
+    let obj_runtime: &mut ObjectRuntime = context.extensions_mut().get_mut();
+    obj_runtime.new_id(address.into())?;
+
+    Ok(NativeResult::ok(
+        context.gas_used(),
+        smallvec![Value::address(address)],
+    ))
 }

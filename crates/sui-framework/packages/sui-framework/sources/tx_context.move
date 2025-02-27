@@ -11,10 +11,6 @@ const TX_HASH_LENGTH: u64 = 32;
 /// Expected an tx hash of length 32, but found a different length
 const EBadTxHashLength: u64 = 0;
 
-#[test_only]
-/// Attempt to get the most recent created object ID when none has been created.
-const ENoIDsCreated: u64 = 1;
-
 #[allow(unused_field)]
 /// Information about the transaction currently being executed.
 /// This cannot be constructed by a transaction--it is a privileged object created by
@@ -60,9 +56,8 @@ native fun native_epoch_timestamp_ms(): u64;
 
 /// Return the adress of the transaction sponsor or `None` if there was no sponsor.
 public fun sponsor(_self: &TxContext): Option<address> {
-    native_sponsor()
+    option_sponsor()
 }
-native fun native_sponsor(): Option<address>;
 
 /// Create an `address` that has not been used. As it is an object address, it will never
 /// occur as the address for a user.
@@ -100,7 +95,16 @@ public fun new(
     ids_created: u64,
 ): TxContext {
     assert!(tx_hash.length() == TX_HASH_LENGTH, EBadTxHashLength);
-    replace(sender, tx_hash, epoch, epoch_timestamp_ms, ids_created);
+    replace(
+        sender,
+        tx_hash,
+        epoch,
+        epoch_timestamp_ms,
+        ids_created,
+        native_gas_price(),
+        native_gas_budget(),
+        native_sponsor(),
+    );
     // return an empty TxContext given all the info is held on the native side (call above)
     TxContext {
         sender: @0x0,
@@ -147,33 +151,50 @@ public fun get_ids_created(self: &TxContext): u64 {
 #[test_only]
 /// Return the most recent created object ID.
 public fun last_created_object_id(self: &TxContext): address {
-    let ids_created = self.ids_created();
-    assert!(ids_created > 0, ENoIDsCreated);
-    derive_id(*self.digest(), ids_created - 1)
+    last_created_id()
 }
 #[test_only]
-/// Native function for deriving an ID via hash(tx_hash || ids_created)
-native fun derive_id(tx_hash: vector<u8>, ids_created: u64): address;
+native fun last_created_id(): address;
 
 #[test_only]
 public fun increment_epoch_number(self: &mut TxContext) {
-    let sender = self.sender();
-    let tx_hash = *self.digest();
     let epoch = self.epoch() + 1;
-    let epoch_timestamp_ms = self.epoch_timestamp_ms();
-    let ids_created = self.ids_created();
-    replace(sender, tx_hash, epoch, epoch_timestamp_ms, ids_created);
+    replace(
+        native_sender(),
+        self.tx_hash,
+        native_epoch(),
+        epoch,
+        native_ids_created(),
+        native_gas_price(),
+        native_gas_budget(),
+        native_sponsor(),
+    );
 }
 
 #[test_only]
 public fun increment_epoch_timestamp(self: &mut TxContext, delta_ms: u64) {
-    let sender = self.sender();
-    let tx_hash = *self.digest();
-    let epoch = self.epoch();
     let epoch_timestamp_ms = self.epoch_timestamp_ms() + delta_ms;
-    let ids_created = self.ids_created();
-    replace(sender, tx_hash, epoch, epoch_timestamp_ms, ids_created);
+    replace(
+        native_sender(),
+        self.tx_hash,
+        native_epoch(),
+        epoch_timestamp_ms,
+        native_ids_created(),
+        native_gas_price(),
+        native_gas_budget(),
+        native_sponsor(),
+    );
 }
+
+fun option_sponsor(): Option<address> {
+    let sponsor = native_sponsor();
+    if (sponsor.length() == 0) {
+        option::none()
+    } else {
+        option::some(sponsor[0])
+    }
+}
+native fun native_sponsor(): vector<address>;
 
 #[test_only]
 native fun replace(
@@ -182,4 +203,11 @@ native fun replace(
     epoch: u64,
     epoch_timestamp_ms: u64,
     ids_created: u64,
+    gas_price: u64,
+    gas_budget: u64,
+    sponsor: vector<address>,
 );
+
+#[allow(unused_function)]
+/// Native function for deriving an ID via hash(tx_hash || ids_created)
+native fun derive_id(tx_hash: vector<u8>, ids_created: u64): address;

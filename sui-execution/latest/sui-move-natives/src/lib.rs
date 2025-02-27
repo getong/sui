@@ -1107,6 +1107,11 @@ pub fn all_natives(silent: bool, protocol_config: &ProtocolConfig) -> NativeFunc
         ),
         (
             "tx_context",
+            "last_created_id",
+            make_native!(tx_context::last_created_id),
+        ),
+        (
+            "tx_context",
             "derive_id",
             make_native!(tx_context::derive_id),
         ),
